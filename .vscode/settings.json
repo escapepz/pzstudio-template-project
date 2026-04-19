@@ -1,8 +1,6 @@
 {
     "extensions.ignoreRecommendations": false,
-    "files.associations": {
-        "*.txt": "ZedScripts"
-    },
+    "files.associations": { },
     "[lua]": {
         "editor.defaultFormatter": "JohnnyMorganz.stylua"
     },
