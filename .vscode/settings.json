@@ -1,6 +1,6 @@
 {
     "extensions.ignoreRecommendations": false,
-    "files.associations": { },
+    "files.associations": {},
     "[lua]": {
         "editor.defaultFormatter": "JohnnyMorganz.stylua"
     },

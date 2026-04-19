@@ -1,15 +1,9 @@
+.libraries/*
+!.libraries
 
-.docs
-.guides
-.serena
-.libraries
 .tmp
-.logs
 .template-mod
 .template-language
-
-Logs/
-tmp/
 
 luac.out
 
