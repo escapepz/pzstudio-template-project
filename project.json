@@ -1,11 +1,11 @@
 {
     "$schema": "https://raw.githubusercontent.com/escapepz/project-zomboid-studio/refs/heads/42.17.0/pzstudio.schema.json",
-    "title": "",
-    "authors": [],
     "workshop": {
+        "title": "",
         "visibility": "unlisted",
-        "tags": ["Build 42"],
-        "excludes": []
+        "tags": ["Build 42"]
     },
-    "mods": {}
+    "mods": {},
+    "useSymlinks": true,
+    "excludes": []
 }
