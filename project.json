@@ -6,6 +6,5 @@
         "tags": ["Build 42"]
     },
     "mods": {},
-    "useSymlinks": true,
     "excludes": []
 }
