@@ -96,11 +96,15 @@ jobs:
         id: tag
         env:
           LIBS_TAG: ${{ steps.latest.outputs.tag }}
+          LIBS_SHA: ${{ steps.latest.outputs.sha }}
         run: |
           set -euo pipefail
-          TAG="$LIBS_TAG-$(date -u +%Y%m%d)"
+          TAG="$LIBS_TAG-$(date -u +%Y%m%d-%H%M)"
           if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
-            TAG="$TAG-$(date -u +%H%M)"
+            TAG="$TAG-${LIBS_SHA:0:7}"
+          fi
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            TAG="$TAG-$(date -u +%H%M%S)"
           fi
           git tag "$TAG"
           echo "name=$TAG" >> "$GITHUB_OUTPUT"
