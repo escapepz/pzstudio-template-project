@@ -1,0 +1,119 @@
+name: Update .libraries pin
+
+on:
+  schedule:
+    - cron: "0 2 * * 1" # 02:00 UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-libraries
+  cancel-in-progress: false
+
+env:
+  LIBS_REPO: https://github.com/PZ-Umbrella/Umbrella
+  LIBS_API: repos/PZ-Umbrella/Umbrella
+
+jobs:
+  update-pin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve latest libraries tag
+        id: latest
+        run: |
+          set -euo pipefail
+          git ls-remote --tags "$LIBS_REPO" |
+            awk '{print $2}' |
+            sed 's|refs/tags/||' |
+            grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' |
+            sort -V |
+            tail -1 > /tmp/libs_tag.txt
+          LIBS_TAG=$(cat /tmp/libs_tag.txt)
+          if [ -z "$LIBS_TAG" ]; then
+            echo "::error::No semver tag found on $LIBS_REPO"
+            exit 1
+          fi
+          LIBS_SHA=$(git ls-remote --tags "$LIBS_REPO" "refs/tags/$LIBS_TAG" | awk '{print $1}')
+          echo "tag=$LIBS_TAG" >> "$GITHUB_OUTPUT"
+          echo "sha=$LIBS_SHA" >> "$GITHUB_OUTPUT"
+          echo "Latest libraries tag: $LIBS_TAG ($LIBS_SHA)"
+
+      - name: Check current pin
+        id: pin
+        run: |
+          set -euo pipefail
+          CURRENT_SHA=$(git ls-tree HEAD .libraries | awk '{print $3}')
+          echo "sha=$CURRENT_SHA" >> "$GITHUB_OUTPUT"
+          echo "Currently pinned: $CURRENT_SHA"
+
+      - name: Skip if already pinned
+        if: steps.latest.outputs.sha == steps.pin.outputs.sha
+        run: echo "Already pinned to latest tag. Nothing to do."
+
+      - name: Check tag age (>24h)
+        if: steps.latest.outputs.sha != steps.pin.outputs.sha
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          COMMITTER_DATE=$(gh api "$LIBS_API/commits/${{ steps.latest.outputs.sha }}" --jq '.commit.committer.date')
+          COMMITTER_EPOCH=$(date -u -d "$COMMITTER_DATE" +%s)
+          NOW_EPOCH=$(date -u +%s)
+          AGE_HOURS=$(( (NOW_EPOCH - COMMITTER_EPOCH) / 3600 ))
+          echo "Tag commit date: $COMMITTER_DATE (${AGE_HOURS}h ago)"
+          if [ "$AGE_HOURS" -lt 24 ]; then
+            echo "::notice::Latest tag is only ${AGE_HOURS}h old (<24h). Skipping to avoid tag churn."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+        id: age
+
+      - name: Checkout
+        if: steps.latest.outputs.sha != steps.pin.outputs.sha && steps.age.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Update submodule pin
+        if: steps.latest.outputs.sha != steps.pin.outputs.sha && steps.age.outputs.skip != 'true'
+        env:
+          LIBS_TAG: ${{ steps.latest.outputs.tag }}
+          LIBS_SHA: ${{ steps.latest.outputs.sha }}
+        run: |
+          set -euo pipefail
+          cd .libraries
+          git fetch --depth 1 origin "tag $LIBS_TAG"
+          git switch -c "$LIBS_TAG" "$LIBS_SHA"
+          cd ..
+          git add .libraries
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "chore(libraries): pin .libraries to $LIBS_TAG"
+
+      - name: Create repo tag
+        if: steps.latest.outputs.sha != steps.pin.outputs.sha && steps.age.outputs.skip != 'true'
+        id: tag
+        env:
+          LIBS_TAG: ${{ steps.latest.outputs.tag }}
+        run: |
+          set -euo pipefail
+          TAG="$LIBS_TAG-$(date -u +%Y%m%d)"
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            TAG="$TAG-$(date -u +%H%M)"
+          fi
+          git tag "$TAG"
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+          git push origin HEAD:main "$TAG"
+
+      - name: Create release
+        if: steps.latest.outputs.sha != steps.pin.outputs.sha && steps.age.outputs.skip != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: ${{ steps.tag.outputs.name }}
+          body: |
+            Automated weekly pin update.
+
+            - .libraries: `${{ steps.latest.outputs.tag }}` (`${{ steps.latest.outputs.sha }}`)
+            - Repo tag uses timestamp suffix because upstream may recreate/move tags.
