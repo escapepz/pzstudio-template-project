@@ -42,9 +42,11 @@ jobs:
 
       - name: Check current pin
         id: pin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          CURRENT_SHA=$(git ls-tree HEAD .libraries | awk '{print $3}')
+          CURRENT_SHA=$(gh api "repos/${{ github.repository }}/contents/.libraries?ref=${{ github.ref_name }}" --jq '.sha')
           echo "sha=$CURRENT_SHA" >> "$GITHUB_OUTPUT"
           echo "Currently pinned: $CURRENT_SHA"
 
