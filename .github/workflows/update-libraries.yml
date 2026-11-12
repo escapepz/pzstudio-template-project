@@ -86,7 +86,7 @@ jobs:
         run: |
           set -euo pipefail
           cd .libraries
-          git fetch --depth 1 origin "tag $LIBS_TAG"
+          git fetch --depth 1 origin "refs/tags/$LIBS_TAG"
           git switch -c "$LIBS_TAG" "$LIBS_SHA"
           cd ..
           git add .libraries
