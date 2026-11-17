@@ -1,5 +1,5 @@
 {
-    "$schema": "https://raw.githubusercontent.com/escapepz/pzstudio/refs/heads/42.20.0/pzstudio.schema.json",
+    "$schema": "https://raw.githubusercontent.com/escapepz/pzstudio/refs/heads/42.22.0-dev/pzstudio.schema.json",
     "workshop": {
         "title": "",
         "visibility": "unlisted",
